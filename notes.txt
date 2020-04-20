@@ -1,0 +1,491 @@
+Websockets allow for full duplex communication.
+That is, they allow bi-directional communication.
+
+Contrast to http, client requests some resource from the server and the server responds,
+but without the client request, server has no right to communicate with the client, all of that chanegs with the websocket 
+communication. It's a persistent connection between client and server, unlike discrete ones in http.
+It also uses seperate protocol, not HTTP.
+
+Let's in detail undestand the basic principles behing socket.io library.
+
+index.js:
+const express = require('express');
+const http = require('http');
+const socketio = require('socket.io');
+
+const app = express();
+const server = http.createServer(app); // This statement is handled by express, even if we don't do it, but we are configuring it
+                                       // explicitly to have socket along with express.
+const io = socketio(server);
+const port = process.env.PORT || 3000;
+
+app.use(express.static('public'));
+
+let count = 0;
+
+io.on('connection', socket => {
+  console.log('New connection request came');
+  socket.emit('countUpdated', count);
+
+  socket.on('incrementCount', () => {
+    count++;
+    // The event is emitted only for the socket that published this event
+    //socket.emit('countUpdated', count);
+    // But to emit, to all the clients - io.emit should be used.
+    io.emit('countUpdated', count);
+  })
+});
+
+
+server.listen(port, () => {
+  console.log('App is running at port 3000')
+});
+
+index.html:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat app</title>
+</head>
+<body>
+  <h5>Chat App!</h5>
+  <button id="increment">+</button>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/chat.js"></script>
+</body>
+</html>
+
+chat.js:
+const socket = io();
+
+// the parameter for listener doesnot matter. Ofcourse as obvious as it can be.
+socket.on('countUpdated', count => {
+  console.log('the count has been updated', count);
+});
+
+document.getElementById('increment').addEventListener('click', () => {
+  socket.emit('incrementCount');
+});
+
+//notes on soccket.io continuing
+
+
+A dig on node, express.
+
+LEts talk a little bit about javascript.
+In javascript functions are first class citizens, meaning many operations that can be performed on native types can also be performed
+ on functions. Thye can be put in arrays, expressions can be made out of it, like a function factory. That is meaning,
+ they can be stored in a variable, passed as parameters, kept as part of expressions, and etc, kind of stuff.
+
+A little bit about modules, lets say there is a module greet.js and it contains code as below:
+function greet(mesg) {
+  console.log(mesg);
+}
+
+greet('Hi There!);
+
+Now I write another module app.js and import this,
+just that line of import is present in app.js
+require('./greet.js);
+
+Then in the console, hi there!, gets printed, that means when ever we import a module, it gets executed.
+And note that it executes, only once, I repeat only once and then after it might get registered in the global cache, may be.
+
+But it wont execute again, whatever the result of that importing module reference is same or consistent across diferent modules.
+and the code stack as well.
+
+Also, the function, greet in module greet.js is safe, you cannot access it if you did not catch the reference returned by require 
+expression.
+Mind it, rascala!
+
+You cannot just go ahead and simply call, greet in app.js and expect it to run!
+That's what I say when modules restrict access and are safe.
+
+So whenever we import a module, the node runs that javascript code present in that module, and exports whatever is assigned to
+module.exports.
+
+Next time the result is may be cached and the same result is given to any one that is importing this module.
+Have fun!
+
+You know that you can create new objects using function constructors. Do you what the object prototype property will point it to?
+It will point to what ever the function, lets call it Person, property 'prototype' will point it to.
+So the new object will ponit to whatever the value that is Person.prototype is.
+
+See whatever the module that we write, is wrapped inside of a function which provides params: exports,module, require, __filename,
+__dirname etc. Any module is executed only once, and is cached. Whatever you pass to require is a path to the file that you wish to
+execute. and whatever you assign to module.exports will be made availabe to any module that requires it.
+
+The thing is you generally pass a file path to require function, do you know that you can pass path to folder and it will take it.
+Thing is when you apss a folder path, suppose there is a greet module, then you might say, 'greet';
+Then it will look for a folder called greet and when its found, it will try to look for the index.js file present in it and
+compiles it first. I also think greet folder need not be on the same path as the file whatever is importing is. 
+While we are on that..
+So how does a native folder or a custom written folder of same name are distinguished?
+if you mention the relative path './' or '../' then its a custom written one else is a native module.
+
+That way you can create a module in node. You can write all the library functions in that folder greet and require them as needed
+in index.js file.
+
+Module.exports taht you get as a param when you import the module in v8 engine is actually an empty object.
+You can override it with other values or add properties to it.
+If you add a property to that, you can actually import like require('./greet').greet; and specifically import just that one.
+Since if you assign a object and its only created once during the first load, then if you add any properties or modify
+any existing properties, they can be seen in another module import.
+
+You can also export a new function constructor and have a object factory baby! And there is also a revealing module pattern!
+So whenever you require a module, we already talked that the code will be wrapped in a function which gives it params,
+exprts, module etc. Although exports and module point to the same object, ulitmately what is returned from every module after it is
+compiled is module.exports.
+But if you override module.exports or exprots shorthand to point to some other object, then they get seperated and point to differnt
+things, ultimately what gets expose after compiling the module is whatever that is module.exports is pointing to.
+So take care of this quirk and you will be fine.
+
+Events in node.js.
+There are 2 kinds of event types in node.js, one that is system gnerated like, hey i have completed reading a file and anotehr, hey
+I got some data over the network. This is done by c++, libuv library. It actually monitors system functions and generates
+ appropriate events, which node js can lead to. As these are strictly native events generated by c++ module, nodejs wraps
+ arount it its own set of events via EventEmiiter object and lets us insteract with that events in javascript side. You can also
+ write custom event - and listening to it, architecture with event emitter.
+
+A general event emitter implementation might look like this:
+function Emitter() {
+  this.events = {};
+}
+
+Emitter.prototype.on = function(type, listener) {
+  this.events = this.events[type] || [];
+  this.events[type].push(listener);
+}
+
+Emmiter.prototype.emit = functfion(type) {
+  if(this.events[type]) {
+    this.events[type].forEach(function(listner) {
+      listener();
+    });
+  }
+}
+
+module.exports = Emitter;
+
+later to use it,
+var Emmiter = require('./Emiiter');
+var emitter = new Emitter();
+
+See when you have a object called person {
+  firstname: '',
+  lastaname: '',
+  greet: function () {
+    console.log('details are ' + firstname + lastname);
+  }
+}
+and you want this to be a prototype of some otehr object, then you can do that in es6 like this Object.create(person);
+The result of it will be an empty object whose prototype is set to person object.
+
+You can also use nodejs util.inherits(constructor, superCosntructor);
+constructor is target function constructor and superCosntructor is where you want to inherit from.
+Many objects that are built into node can inherit from Event Emitter and benifit of it, if you see any node library emitting events
+becuase it is inheriting from the EventEmitter class.
+
+When you use util.inehrits, the prototype object of super constructor is just appended to an empty object prototype which
+will be again appended to the current function constructor's 
+prototype. The super constructor is never run actually. Only its prototype is attached. If you also want to get the super
+constructor's properties declared in the current constructor function, that is if you want it to be run in the context of
+current constructor function jsut call it like this,
+EventEmitter.call(this) in original cosntructor function, that way call takes this and runs the constructor function of event
+emitter, when function cosntructor is provided this manually or explcitly it uses that this rather than creating a new empty object,
+and ofcourse it will run like  that and is not expected in any other way as it is run like a normal function 
+and new is not placed in before it.
+Else new will force it to use an empty object and act on it. And object.create Working contrast to this, is it 
+just creates an empty object and that object is simply set to the target constructor prototype.
+
+Lets revisit function constructor now,
+When you call a function cosntructor a new empty object is created and proeprties are set on it as dictated by the new function 
+constructor and this empty object that will be returned will have its prototype set to whatever the object that 
+function constructor prototype is pointing to. And important point is the prototype object is same across all objects that is
+created from the same constructor function.
+function PErson() {
+  this.firstname = 'cool'
+  this.lastname = 'cool1'
+}
+person.pototype.greet = function() {
+  console.log('Hi!' + this.firstname + this.lastaname);
+}
+like say var person = new Person();
+var person1 = new Person();
+person and person1 will have its own firstname and lastaname proeprties but their __proto__ points to the same object.
+i.e. person.__proto__ -> PErson {}
+person1.__proto__ -> Person{} and that person.__proto__ === person1.__proto__ is true.
+
+Generally how the event loop works in node.js
+The v8 engine runs all the code in one place, and in anotehr thread, we assign call back functions to libuv where we assign a system
+task as well to run. Once the system task is completed the libuv tries to push the callback to v8 for execution.
+Node.js is not asynchronous, but what it is best at is handling all the asynchronous tasks that are happening all at once in 
+a singel thread. It's diffuclt to manage asycnhronous tasks from the code perspective. I we are really writing asynchronous code
+that is difficult and we have to think about how each tasks affect each other tasks. 
+But node js with event driven model makes that all easy, by assigning call backs you can handle asynchronous tasks at ease.
+With this approach of asynchrnous model, nodejs makes it all easy to be a performant library.
+Libuv istself is an independent module and  its own seperate website describes itself as an asynchronous IO module.
+Helps in managinging multiple io activities that are happening at a same time by defining its own fraemwork and a pattern to do it.
+
+Buffer is how you deal with binary data in javascript, as there is no way to dea with binary data in javascript like filedata,etc.
+NodeJS expanded buffer concept on it, to make js accept this binary data.
+It's global unlike EventEmitter and no need to import it.
+var buf = new Buffer('Hello', 'utf8');
+Now you created a buffer for 5 characters and said that these characters belong to utf8.
+When you log the buffer, you will see hexadecimal representation of these characters like <Buf some_5_digits>
+When you invoke .toString(), it will print the string Hello.
+When you say toJSON(), on it, then it will create a object with type property set to 'buf', and then data property set to 5 Ascii
+chars. You can specifically access the char by its position like buf[2] and it will get you character at 3rd position
+You say buf.write('wo') and then log it you will see wollo. AS you created a buffer of 5 chars and it will be overwritten when
+new data is written to it. It is used more lika a placeholder to gather some data, when you wirte to it, it thinks that the data
+present in it is already processed and hance overwrites..
+Es6 now does have to deal with binary data.
+var buf = new ArrayBuffer(8);
+storing 8 bytes or 64 bits in buffer.
+var view = new Int32Array(buf);
+Now I say view[0] = 1; and view[1] = 15; 
+adnd I console.log(view), then I will get { '0': 1, '1': 15 }
+Unsure, whether node uses it yet, but there is a provision for it though in js now to deal with binary data.
+
+Just a look at the eventloop of javascript once more!
+var fs = require('./fs');
+
+You will use readFileSync for may be reading config files
+var greeting = fs.readFileSync(__dirname + '/greet.txt', 'utf8');
+console.log(greeting);
+
+But you will use readFile for any other activities that you can assign a callback when that is done!
+var greet2 = fs.readFile(__dirname + '/greet.txt', 'utf8', function(err, data) {
+  console.log(data);
+});
+But ofcourse this callback is executed once everything is executed in the callstack of v8.
+This means the below consolelog statement will execute first than the above file call back.
+Even if the file callback completes before even the below statements completes its execution.
+console.log('Done!');
+
+So they say, the data that you read from the file will sit in buffers. so when many people simultanesly execute this program,
+a buffer is created for each execution and this could cause a lot of grief in terms of memory usage and even could hang your 
+app beacuase of memory shortage.
+So what do we do, we take advantage of streams:
+Streams are implmented by inheriting the EventEmiiter, so they can and do emit events.
+There are multple stream types: Readable, Writable, Duplex, Transform, PassThrough.
+As the name suggests they do what they say.
+Stream is basically an abstract class, nodejs implemnts it or you can write your own implementation.
+So REadable stream an abstract type inherits from Stream Abstract type and it itself inherits from EventEmitter.
+Now the custom version of REadable stream are implemented like reading from file, database etc.
+An example of concrete implementation of this is fs, a stream in itself.
+fs.createReadStream creates a readable stream from a file.
+ex:
+var fs = require('fs');
+var readable = fs.createReadStream(__dirname + '/greet.txt', { encoding: 'utf8' /*Dont' specify this option,
+you will get data in buffer format.*/, highWaterMark: 16 * 1024 /* this option lets you specify the chunk size of data to retrieve 
+each time */ });
+
+readable.on('data', function(chunk) {
+  console.log(chunk);
+})
+
+you might wonder that createReadStream will get the data before we attach an event handler, to the readable, but as I said,
+all system operations like reading a file are duties of libuv and will not post or emit any events, until the stack of v8
+completes. Here still the code is left, so it will immediately go and fetch the data, but to post it, it will wait for all
+of the execution to complete in the current stack, which is assigning a lsitenr function to event 'data', hence the above
+code works.
+
+Since streams use a constant piece of buffer size and leave it once the usage completes,
+var fs = require('fs');
+var readable = fs.createReadStream(__dirname + '/greet.txt', { encoding: 'utf8' /*Dont' specify this option,
+you will get data in buffer format.*/, highWaterMark: 16 * 1024 /* this option lets you specify the chunk size of data to retrieve 
+each time */ });
+
+var writable = fs.createWriteStream(__drianme + '/greetCopy.txt');
+
+readable.on('data', function(chunk) {
+  console.log(chunk);
+  writable.write(chunk); // Here you jsut write the data as it comes and make use of the same small buffer size.
+})
+
+This way of creating streams, some how is an efficient usage of buffer. And pipes can actually pipeline multiple streams
+and makes them work as if everything is a single stream, with no intermediate buffer perhaps ?
+So a pipe when is used to concatenate writable stream into readable stream, pipe at one makes itself a writable
+stream, so that the data can be written into, and at the other end bahaves like a readable stream to pass on the data,
+that it recieved at the other end.
+But that is the technical definiton of it and you remember it just liek that, inside if you see the implementation,
+there is a function pipe, for every stream, for readable stream the pipe takes in as first argument, the 'writable'
+stream and writes into it by invoking its write whenever the data event comes up.
+
+var fs = require('fs');
+var readable = fs.createReadStream(__dirname + '/greet.txt');
+
+var writable = fs.createWriteStream(__drianme + '/greetCopy.txt');
+
+readable.pipe(writable); // Hola, see how the above program got simplified!
+the pipe will also return this writable stream whatever is passed as param to it.
+This pipe can actually, combine nay type of streams. (belonging to the opposite end of spectrum?)
+
+
+var fs = require('fs');
+var zlib = require('zlib');
+
+var readable = fs.createReadStream(__dirname + '/greet.txt');
+
+var writable = fs.createWriteStream(__diranme + '/greetCopy.txt');
+
+var compressed = fs.createWriteStream(__dirname + '/greetCopy.txt.gz');
+
+readable.pipe(writable);
+
+var gzip = zlib.createGzip();
+
+readable.pipe(gzip).pipe(compressed);
+
+AS we already talked about how the pipe function returns the stream whatever that was passed to it, here gzip basic functionality is
+can pass a chunk to it, and will return the stream that is compressed.
+So when gzip is passed to to pipe function of readable, the stream is written to it, so gzip has some data in it,
+and we caled pipe function, on this gizip again, becuase thats what pipe of readable returns, the same gzip that was passed to it,
+now the gzip.pipe is taking in a writable stream, so gzip writes into that stream whatever the data that is passed into it.
+
+So this is how cleverly node libraries are implementing pipe functionality and is indeed a cool example.
+
+So the above example of method chaining is really a pwoerful one, and also using streams , lets you share buffer and severly help you
+in conserving memory. So whenever you write nodejs applications, you should always remember about asynchronous methods and 
+streams. REally node likes it and lets it to be performant. When you get teh hang of it, you will write only in strams and async 
+methods.
+
+Thes streams can be anything, like files, netwrok, database etc.
+
+var http = require('http');
+
+http.createServer(function (req, res) {
+  req.write(200, { 'Content-Type', 'text/plain' });
+  res.end('Hello world\n'); // Alaways a proper way to end the stream \n, and yes, this response is also a stream to nodejs!
+}).listen(1337, '127.0.0.1');
+
+So now you should be able to understand whatever that is going inside that createserver function,
+a request event whenever is emitted, the listener function is called for such event and is executed. IT can actually listen to 
+a port and receive and write requests to it.
+
+You can also send a file rather than html in strings.
+
+var http = require('http');
+var fs = require('fs');
+
+http.createServer(function (req, res) {
+  req.write(200, { 'Content-Type', 'text/plain' });
+  const text = fs.readFileSync(__dirname + '/greet.txt');
+  res.end(text);
+}).listen(1337, '127.0.0.1');
+
+We already resolved that we will be using asynchronous things, and for that matter, we should also use streams,
+
+var http = require('http');
+var fs = require('fs');
+
+http.createServer(function (req, res) {
+  req.write(200, { 'Content-Type', 'text/plain' });
+  fs.createReadableStream(__dirname + '/greet.txt').pipe(res);
+}).listen(1337, '127.0.0.1');
+
+Well, lovely, with the use of streams, we are able to save ton of buffer sapce for each request? Atleast thats what I understand.
+Nodejs, npm use semantic versioning system, which is an endeavour to give some meaning to each version number.
+IT uses this format. number.number.number, => Major.minor.patch
+We wil increment the patch number, if we fix the bugs, so the code's api is compatible with old version.
+I add new features, I update the minor version. So the code is still compatible in terms of the api its offering.
+If you update the major version number, then you amde a bigger update and it might not be compatible with older api.
+
+semver.org documents all of this.
+
+--save while isntalling any npm module, edits package.json, so if you want to test out a node module to whether to use it or not
+better do not use save flag? --save-dev to save it as dev dependency.
+A caret ^ in npm package dependencies list specifies that whenever a patch or minor update comes up, update to it.
+A ~ then only for patch, update the package.
+
+lets revisit the httpserver creation again,
+We already know that http is a type of event emitter and hence can emit events and execute the listeners respective to the 
+event. Here, we passed a listener function to createserver function, the functioni s triggered whene ever a new request event
+comes up! may be libuv listens to the tcp /ip socket, whenever there is a new request it generates a new event such as 
+'new request', and the listener function is called up with req object of that request and a response stream to which you can write
+anything to it and will be passed as a response to that specific incoming request. Note taht the function is invoked for each 
+request and every time the request and resposne are different corresponding to the incoming request.
+
+Express is a popular middleware used along side with node, it is used like this:
+var express = require('express');
+var app = express();
+
+Now for each http verb and the url location you can attach a listener, taht way when a request comes up for a specific url with 
+a http verb, that specific listener caters to that request.
+An example woulr be app.get('/', (req, res) => {}); app.post('/users', (req, res) => {});
+See how app is letting you attach a listner based on url and the http verb associated it.
+
+Every listener is called with req and res objects provided by node.
+You can send strings and even json:
+res.send('');
+res.json({});
+
+if you want to serve the static assets folder you can say app.use('/path_to_static_assets', express.static(__dirname + '/public'));
+Whenever there is any request for path 'path_to_static_assets' it will be served that file that is present there.
+See express how it handles all the dirty work present there of serving static files up.
+
+That way express so many middlewares to provide all the utilities to serve you web folder.
+CAn you write your own middleware function ? app.use('/', function(req, res, next) {});
+and voila (Y)
+
+That way I can use a middleware app.use('*', authorization_middleware) and authorize every request.
+
+There are many middlewares available for express
+ middleware examples,
+ One pupular example is cookie-parser
+ Just import the cookie parser and do this app.use(cookieParser())
+ It will get access to every incoming request and also access to response for that request, since you used app.use function.
+ This  cookie parser will read the incoming request and sees if any cookies are present and it will populate like a javascript 
+ object all the cookie values pairs under req.cookies
+ Passport is another great example for middleware.
+
+Also you can templates along with express:
+See how you set a view engine and the assocaited files that follow that engine syntax.
+ app.set('view engine', 'jade'); // the second parameter is the file extension
+ app.set('views', './views');
+ app.render('index.jade', dataObject) // You invoke render method for showing template files and you can also pass data to them.
+
+Generally how does client post data to the server?
+The request general format are : query-params, cookies, x-www-form-urlencoded - form data, application/json.
+For query params, express does it by default and are available under req.params.
+
+There are excellent middlewares to parse other types of request formats:
+bodyParser is one good example,
+ for x-www-form-urlencoded -> var urlencodedParser = bodyParser.urlencoded({ extended: false }); 
+ And thats it, you will get all the posted data under req.body
+now pass this urlencodedparser middleware to whatever route you want,
+That is if you know a route, where this post data or form data is posted to, before running any middleware, make this middleware run,
+for ex: if the user data comes for a sample ur like /users, then
+we should pass the above middleware like this
+app.post('/users', urlencodedParser, (req, res) => {})
+Then for the second middleware right, first middleware urlencodedparser will parse that form data and sets that under req.body
+for application/json: var jsonParser = bodyParser.json();,
+whatever the data that is send as json, will be again under req.body
+
+It gets clumsy when you keep all the routes in a single module,
+so you wanna keep some routes under different modules as well, and how we can do that
+for exmaple all routes dealing with users can be kept in module , all routes dealigng with like cart/ can be done in another module,
+if you want you can categorise, futhermode evern like cart/special/.
+So syntax to do the same :
+
+var router = express.router()
+module.exports = router;
+
+app.use('/', indexRouter);
+app.use('/cart', cartRouter);
+
+in cartRouter you can say router.post('/items', listener1) in cart router and the listenr1 will listen to path '/cart/items' for post verb
+in undexrouter you can say router.post('/users', listener2) in index router and the listener2 will listen to path '/users' for psot verb.
+
+
+
+
+
+
+
+
+
+
