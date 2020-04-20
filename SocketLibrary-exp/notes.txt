@@ -480,7 +480,29 @@ app.use('/cart', cartRouter);
 in cartRouter you can say router.post('/items', listener1) in cart router and the listenr1 will listen to path '/cart/items' for post verb
 in undexrouter you can say router.post('/users', listener2) in index router and the listener2 will listen to path '/users' for psot verb.
 
+Http is what peopel called application layer protocol. It uses TCP protocol at transportation level. TCP uses IP protocol
+at netwrok layer. UDP is most fast and unreliable. TCP is efficient and reliable. HTML Docs and whatever that we are distributing
+across the network should not miss even by a bit and hence it uses TCP/IP suite for network communication.
 
+In eitehr HTTP request or response there are 3 parts:
+Starter line
+Header
+Body
+
+A request might look like this
+GET / HTTP/1.1
+Host: www.google.com
+User-Agent: curl/7.58.0
+Accept: */*
+
+A response might look like this
+HTTP/1.1 200 OK
+Date: Mon, 20 Apr 2020 12:01:44 GMT
+Expires: -1
+Cache-Control: private, max-age=0
+Content-Type: text/html; charset=ISO-8859-1
+
+<HTML content...>
 
 
 
