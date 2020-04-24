@@ -1,0 +1,238 @@
+Lets talk about node on how to manage req, res without using express.
+Node as we know provides response object to provide resposne to the client.
+Start line is any way provided by response object and we have to start from providing headers.
+To do that in node, we start by 
+res.writeHead(
+  200, // Status code
+  { 'content-type': 'text/html' } // object for the mime type
+)
+
+res.write('We can write any string to this stream');
+when we call res.end(); we are officially informing them that we are done writing.
+
+You have access to req.url, which tells us that path after hostname.
+If you wish to send a html file to browser, you can do it via readFileSync, buffer is laoded up, i.e. the contents of the file,
+and they can be directly written into res.
+You can do the same for images, reading them from theri files and readout buffer can be directly written into response.
+But how does browser detect whatever the type buffer is ? we are also sending content-type whether it is text or html or image/png.
+That way!
+Now for every request, we are sending content-type and for every request we have to write if conditions on how to handle taht 
+request. For example possible requests that can come in int the inital node are inex.html, index.css, all favicons, all images used by it etc.
+ Needless to say, that becomes quickly clumsy. And you have to based on request.url, need to carefully and successfully handle taht request.
+Lets try express!
+Express handles the basic headers like status code and mime type.
+it automatically calls the response.end()
+To write strings to response, we call res.send() in express.
+
+see creating server in express is 3 or optionally a step extra.
+1. load express
+var express = require('express');
+var app = express();
+2. Declare all the event handlers based on url and http verb.
+like app.post('route_path', listener);
+3. start up the app on a port.
+app.listen(3000, listener); // Here listener will only runs once i n the application lifetime once after the express start 
+listening on the port passed to it.
+
+So express supoorts all basic http verbs like get, post, put, delete. and also 'all' which handles any verb.
+So if you declare a second event handler to the same combination of http verb and route, it will be ignored.
+You dont send anything in the event listener, it will be stuck, client will generate a timeout error probably.
+
+app.use(): This method is proved by express to mount a middleware.
+Generally, it takes first parameter as base path to match, but if you provide only 1 param, its gonna assume its a middleware
+function, so if you privide a path like /users, then its gonna execute that middleware function to all paths matching /users/*
+If you don't it will apply to all routes.
+
+Best case usage is express.static(), this express.static() internally uses serve-static, and takes in a path parameter where
+the static files are stitting. If you mention the path as 'public', which is ofcourse relative it actually checks each request 
+and if there is any static file matching the path recieved, it will just serve it up, You can serve multiple static folders
+
+There is a path module which you can import, its core nodejs module,
+The point is when you want to send a file, you can use res.sendFile, bt you have to mention the absolute path starting from
+the root of teh computer, you can do that by path.join(__dirname, 'relative path to this module');
+
+Simplistically express is 2 things,
+1. a router and
+2. middleware that comprises a webframework
+a middleware is a func  that has access to req, res, next objects.
+This tiny little middlewares is all taht makes up express methodology to approach web development,
+You can adjoin any middlewares as you want to a particular http verb and route combination and each will be executed one 
+after anotehr, if you want to break this chain of middlewares execution, you have access to the third parameter next func,
+and only if its called, will it go to the next middleware. The thing is when you have 2 middlewares lined up, calling the next
+func is compulsory in the first middleware to let the exectuon of second middleware.
+
+You forget to invoke next in some app.use('/boom'), boom, that  '/boom' path will never see any otehr middleware.
+
+do incldue statements like app.use(  express.json()), app.use(express.urlencoded()),
+That way whether the data is posted in format application/x-www-formencoded or application/json, it will be parsed under req.body
+checkout helmet package for sure, setouts the appropriate headers to save you from general web vulnerabilities.
+make it the first statement for app.use()
+if you just send data, without the status code explictily calls like jquery fails, becuase by default the string you send
+will defaultly set the content-type as 'text/html'. And jquery doesn't know or ajax query by jquery doesn't know
+what to do with the html it got.
+And use res.json to send json response. That way the content-type is set to 'application/json' and now jquery will
+process the response. Else it will straight out ignores it.
+
+res.cookie('name of the cookie', value of the cookie);
+ex: res.cookie('name': 'kingGeorgie');
+res.clearCookie('name of the cookie to be cleared');
+ex: res.clearCookie('name');
+
+res.redirect('/') takes a path and redirects the client to point to that path.
+
+well you know when setting the static views, you want to render a particular view?
+you knwo the syntax right? for ex: for path /welcome it it is,
+app.get('/welcome', (req, res) => {
+  res.render('welcome'); // Now welcome.ejs in view folder will be snt as response. 
+});
+
+You can get query string by , req.query and if its a dynamic url, then you can get that dynamic value by req.params.
+
+And if there is a url like, /:storId, then you have to do app.get('/:storyId');
+Now you have to write another lsitenr, if you want to match /:storyId/:linkId. 
+
+Now when we have already app.get('/:storyId', (req, res, next) => {} );
+you cant expect app.get(':blogID', (req, res, next) => {} ) to run!
+Becuase /:storyID and /:blogId have the same wildcard representation get it ?
+if you wnat the blog id to run, then call next in first middleware, just like how you wish to pipeline middlewares if
+there are multiple middlewares on a single path declaration.
+
+If you did a app.download(and provde the path to that file), it will get autoamtically downloaded, you can optionally
+send in the second param, which tells its name.
+Then it will set the header, content-disposition: attachment; filename='whatever the file name you sent',
+it will also optionally take a callback with just aerror parameter, ion the function block if there is some error while 
+sending the file, you can actually check res.headerSent flag and see if the error was communicated to the client, as in 
+some cases error occurs before even the headers are sent, in that case you can do that res.redirect();
+Becuase you will keep this res.download in a middleware yo uwill have access by closure scope in error call back for the 
+app.download as well.
+
+To do a  empty cache and hard reload, open up your console and then try right clikcing on refresh button.
+Then you will get that option.
+
+Router syntax revisited,
+var express = require('express');
+var router = express.Router();
+
+router.post('/', listenr1);
+
+router.post('/something', listener2);
+
+module.exports = router;
+
+in app.js;
+
+var express = require('express');
+var app = express();
+var router = require('./router');
+
+app.use('somespecialroute', router);
+
+see router provides all http methods like app does, router.post, put, deleteand even router.use, but its sepcific to only that
+somespecialroute url only.
+
+See if no url is hit, i mean there is no matching path for req.path, so no event lsitenr gets executed,
+so to generate a 404 error do this, app.use((req, res, next) => { next(new Error(404)); });
+ then declare app.use(err, req, res, next), this will automatically run.
+ check the error, if its 404, render the 404 page.
+
+Always snd your javascript data by res.json such that headers are properly set to application/json
+
+Passport is a nodejs middleware and can also be used in express seamlessly to authenitcate your users.
+It can be used to handle all social account logns, oauth logins, jwt token logins.
+Whatver the thing you want to login, you have to employ that strategy. Passport has about 502+ strategies.
+
+How does oauth work,
+whenever you click on some github login, then your app lets call it Pi redirects to you the github with requester company beside 
+as Pi, then once the user logins with github, github asks if it can grant the access, if you say yes, it will give you the
+access token and client id, the client id and access token is then apssd onto the Pi app, the pi app request github with this
+access toke nand client id, the github validates the client id and access token pair and gives the user data.
+The pi logins with that user data.
+
+Passport middleware is used becuase a lot of above things are knocked out by passport.
+
+We have to register our app with github, so taht github knows such a company exists.
+Just fill in all teh details, but the important detail to fill is when github is done authenticating, it should
+knwo what url it should redirect to. 
+Once you register your company, it will give you client id and client secret key.
+This client id public ones and can be shared, but not the client secret key.
+
+Now coming to authenticating part,
+lets discuss about github in the coding too.
+you require passport
+you will require passport-github, and after requiring you will destructure strategy proeprty in it.
+
+then you say passport.use(new passportGithubStrategy({
+  clientID: the id you got from github,
+  clientSecret: the secret key you got from github again,
+  callbackurl: the url that github will route to once its done authenticating
+}), function(accessToken, refreshToken, profile, cb) {
+  User.findOrCreate({githubId: profile.id}, function(err, data) {
+    return cb(err, profile);
+  })
+
+})
+
+
+Now once you do it, you have to call passport.authenticate('github') and the return value is a middleware,
+keep that in some login route and you will be fine!
+
+the callback url, that we passed right should be declared like this,
+app.get('/auth', passport.authenticate('github', {
+  successRedirect: '/',
+  failureRedirect: '/loginFailure'
+})), when you pass the extra config method to the passport.authenticate, the second function you passed above will be triggered,
+here you can actually store the github profile, but also should call the callback proived so that github will complete the
+transaction, else it will be hanging, basically this 'cb' is called to let know the github that we successfully stored the user
+here, and tha t it should also store this information that a user has been successfully logged in via its oauth.
+You just need to send cb with error as null and thats it. What data you wish to send is all in ur hands.
+This calling of cb is necessary because, if you want to log out all the token,s github should have a track of the users logged in,
+now after this is all done, successRedirect whic you passed in here will be taken care and app will route to that route.
+
+and before all this app.use(passport.initialize()) and app.use(passport.session()) must be done.
+First one for the passport setup and latter one for persistent session
+when you use passport.session(), you also have to give expresss ability to save sessions.
+And how express does is via adding another npm module express-session, just pass it in app.use()
+
+when you use passport.session , you also have to implement methods, passpot.serializeUser, and passport.deserializeUser,
+its own library methods.
+
+This when is done properly and how to do this is explained in passport, you will have access to req.user property (Y)!
+The thing is when req.user is once available, the session maintains through out and is availabe in every route via req.user
+Awesome no!!
+For code regarding passport: https://github.com/robertbunch/justExpress/tree/master/moviePassport
+
+Lets also take a look at how multer is used in express.
+See multer is a npm library to hnadle multi part /form data.
+multer is used as middleware in express.
+
+so you initialize the multer with filepaths to be saved, then you will get a function.
+General convention is to call it by name 'upload', now pass that middleware to any route that handles multi part/form data.
+it will create a req.file storing that file data and req.body for  any text fields that have come along with form submission.
+ it will also hav stored the file by npow in the folder.
+
+Let's see how a file is generally sent from the react app.
+ in the handle submit of form,
+ handleSubit(e) {
+   const file = document.getElementById('file-field').files[0]; // Every file field is a files array.
+   const url = 'http://localhost:3000/uploadFile';
+   // Files and such binary data will always be sent in binary format and the header should definitely set its content type 
+   // as multipart/form-data. Else multer at the side of express will simply not process this.
+   const config = {
+     headers: {
+       'content-type': 'multipart/form-data'
+     }
+   }
+
+   const data = new FormData(); // Multi part form data is alsways sent as key value pairs in FormData object.
+   data.append('meme', file); // Since FormData is a DOM object, its way of adding key value pair is little different.
+
+   axios.post(url, data, config).then( response => console.log(respose.data));
+ }
+
+ Take a look at multer s3 for storing into s3 buckets of AWS.
+ reactmulter live project in guthub account - robertbunch
+ 
+
+
+
+
