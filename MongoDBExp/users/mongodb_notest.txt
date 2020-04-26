@@ -1,0 +1,39 @@
+There is also discussion about mongoose here.
+A model in mongoose may be like User model, deals with all the collections of 'User' present in the database.
+Although the model name is singular, it represents all collections in the db.
+Every model has a schema which tells us the fields for each isntance/record present in the collection and the type of each field,
+optionally some metaproperties like required, etc. 
+
+Each instance of user model has some librayr functions associated with them,
+User.find({}) = you provide the fields in the find function in form of object,
+it will find all the records that match the criteria and returns an array.
+Each field in object param is matched against each record's respective field.
+An empty object means return all records.
+
+User.findOne({}) = just like above except that it only returns a single and first record that
+ matches the criteria provided. An empty object is a command to fetch the first row.
+
+const user = new User({ name: 'joe' })
+user.save(); this save is again provided by the model and saves the model back to the users collection.
+The model whenever it creates a new object, automatically assigns the id property, so even before we can access joe._id.toString()
+to see its id, if you don't call toString() you will get a ObjectId instance.
+
+There are 4 different kinds of remove.
+One on model instance, if you got a reference to the model instance, like you already retrieved one from the database,
+by findOne or some other read method, then you can call directly remove(), on that instance.
+
+But if you do on User model, rather than instance like, USer.remove(), then you have to pass the criteria to it and it will
+delete all the instances that match the criteria. If you want to delete the firstone that match the criteria, you can use
+User.findOneAndRemove(). If you want to delete any object by id, there is a method for that as well, like findByIdAndRemove()
+
+for update as well, the functions are like delete, excpet for one more function is added on to the model instance.
+On model instance, you have update and 'set'-and-'save' function.
+On User model, you have update, findOneAndUpdate, findByIdAndUpdate
+
+Mongo operators are a big win***********************************
+
+fail the test always atleast once.
+
+Rather tahn sql like approach, user and posts model,
+mongoo is user, a field in it is array of posts.*****
+so for a nested  document, we might create a new schema but there will be only one model, user model
