@@ -41,10 +41,10 @@ describe('Updating records', () => {
   });
 
   it('A user can have their postcount updated by 1', done => {
-    User.update({ name: 'joe'}, { $inc: { postCount: 1 }})
+    User.update({ name: 'joe'}, { $inc: { likes: 1 }})
       .then(() => User.findOne({ name: 'joe'}))
       .then(user => {
-        assert(user.postCount === 1);
+        assert(user.likes === 1);
         done();
       })
       .catch(err => {

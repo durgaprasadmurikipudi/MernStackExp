@@ -32,4 +32,23 @@ describe('Sub documents tests', () => {
         done();
       });
   });
+
+  it('can remove a sub document', done => {
+    const joe = new User({
+      name: 'joe',
+      posts: [{ title: 'Post title'}]
+    });
+    
+    joe.save()
+      .then(() => User.findOne({name: 'joe'}))
+      .then(user => {
+        user.posts[0].remove();
+        return user.save();
+      })
+      .then(() => User.findOne({ name: 'joe' }))
+      .then(user => {
+        assert(user.posts.length === 0);
+        done();
+      });
+  });
 });

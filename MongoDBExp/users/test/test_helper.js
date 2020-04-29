@@ -6,5 +6,14 @@ before(done => {
 });
 
 beforeEach(done => {
-  mongoose.connection.collections.users.drop(() => done());
+  // Although we named the model blogPost, it is normalized in mongodb
+  const { users, comments, blogposts } = mongoose.connection.collections;
+
+  users.drop(() => {
+    comments.drop(() => {
+      blogposts.drop(() => {
+        done();
+      });
+    });
+  });
 });

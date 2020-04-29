@@ -37,3 +37,32 @@ fail the test always atleast once.
 Rather tahn sql like approach, user and posts model,
 mongoo is user, a field in it is array of posts.*****
 so for a nested  document, we might create a new schema but there will be only one model, user model
+
+You know inlike joe.remove, joe.subdocument.remove() will not directly save it to database.
+This remove on a field level is considered as a field change, and should be accompained with __instance__.save();
+
+do you know that you can go to node src folder and open termianl from it, type in node, press enter
+and require any mongoose model and assign it to a constant and refer it and access it, run methods on it ?
+yea, now you know!
+
+So far we have been storing posts in user model,
+Think about this, now we wish to fetch random 10 posts..
+What would you do?
+User.find({}).then(users => users.flatMap(user => user.posts));
+
+Now above query has so many flaws for getting random 10 posts, you are getting all users, suppose if you limit the query to
+fetch first 10 suers, what if those 10 suers have never made any posts?
+There could be otehr ways, but don't you think this is becoming unnecessarily hard than it has to be?
+For example if there is a subdocument inside a document, we have this issues, what about a subdocument inside a subdocument
+inside a document, liek array of comments inside posts inside user.
+How would you handle a query like, get all the latest comments made by  user amanda ?
+Solution, separate collections for each document, but that might involve multiple in and out db calls. 
+So a trade off, try to have a balance between Embedded cocuments vs separate collections.
+
+xit and it.only and root suite -> before is outside of all describe blocks.
+
+suprisingly query is not executed unless you tail it with .then call.
+So if you a query, User.findOne({ name: 'joe' }), it will not go to db and retrieve it, mongoose won't do it.
+so this is the query part, tehre are also modifiers that we can attach to the query, this will work becuase, 
+mongoose did not go to db as soon as query is made.
+So if you say populate a ref field it will work.
